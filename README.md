@@ -30,7 +30,7 @@ Tạo file tên là `.env` trong thư mục `backend` và điền các thông ti
 
 ```.env
 PORT=5001
-MONGO_URI=mongodb+srv://... (Thay bằng chuỗi kết nối MongoDB của bạn)
+MONGO_URI=mongodb+srv://vonguyenminhhoang205_db_user:Q66IOsVqhCj2g7QU@cluster0.weusyts.mongodb.net/qlchitieu?appName=Cluster0
 JWT_SECRET=nhap_mot_chuoi_ngau_nhien_bao_mat
 FRONTEND_URL=http://localhost:3000
 ```
