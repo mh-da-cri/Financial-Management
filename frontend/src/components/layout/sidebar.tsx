@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 
   CalendarDays, 
-  Wallet, 
   Settings,
   Banknote,
-  PiggyBank 
+  PiggyBank,
+  ClipboardList
 } from "lucide-react";
 
 export function Sidebar() {
@@ -18,15 +18,18 @@ export function Sidebar() {
   const menuItems = [
     { title: "Dashboard", href: "/", icon: LayoutDashboard },
     { title: "Lịch chi tiêu", href: "/expenses", icon: CalendarDays },
+    
+    // --- SỬA ICON Ở ĐÂY ---
+    { title: "Kế hoạch chi tiêu", href: "/plans", icon: ClipboardList }, 
+    
     { title: "Thu nhập", href: "/incomes", icon: Banknote },
     { title: "Tiết kiệm", href: "/savings", icon: PiggyBank },
-    { title: "Cài đặt", href: "/settings", icon: Settings },
+    { title: "Cài đặt", href: "/settings", icon: Settings }
   ];
 
   return (
     <aside
       className={cn(
-        // GIẢM ĐỘ RỘNG: w-72 -> w-64
         "fixed left-0 top-0 z-40 h-screen w-64 bg-white transition-all duration-300 ease-in-out shadow-soft"
       )}
     >
@@ -69,8 +72,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-      
-      {/* ĐÃ XÓA MỤC "SỐ DƯ KHẢ DỤNG" Ở ĐÂY */}
     </aside>
   );
 }

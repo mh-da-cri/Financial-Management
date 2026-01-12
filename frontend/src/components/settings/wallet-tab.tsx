@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, ArrowRightLeft } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRightLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
@@ -11,21 +11,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import axiosInstance from "@/services/axiosInstance";
 import { Wallet } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { useAlert } from "@/context/alert-context"; // <--- Import Context
+import { useAlert } from "@/context/alert-context";
+
+// Bảng màu mở rộng 30 màu sắc (3 hàng x 10 cột)
+const PRESET_COLORS = [
+  // Hàng 1: Các tông nóng (Đỏ, Cam, Vàng đậm)
+  "#ef4444", "#f97316", "#f59e0b", "#eab308", "#a16207", 
+  "#dc2626", "#ea580c", "#d97706", "#ca8a04", "#b45309",
+  
+  // Hàng 2: Các tông lạnh (Xanh lá, Teal, Xanh dương)
+  "#84cc16", "#22c55e", "#10b981", "#06b6d4", "#0ea5e9", 
+  "#3b82f6", "#6366f1", "#4d7c0f", "#15803d", "#0f766e",
+  
+  // Hàng 3: Tím, Hồng và Trung tính
+  "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e", 
+  "#e11d48", "#db2777", "#c026d3", "#71717a", "#000000"
+];
 
 export function WalletTab() {
-  const { showAlert } = useAlert(); // <--- Hook
+  const { showAlert } = useAlert();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // State Dialog CRUD
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
   const [formData, setFormData] = useState<{ name: string; balance: number | string; color: string }>({ 
       name: "", balance: 0, color: "#000000" 
   });
 
-  // State Dialog Transfer
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [transferData, setTransferData] = useState<{ fromWalletId: string; toWalletId: string; amount: number | string }>({
       fromWalletId: "", toWalletId: "", amount: ""
@@ -46,7 +59,6 @@ export function WalletTab() {
     fetchWallets();
   }, []);
 
-  // --- LOGIC CRUD VÍ ---
   const handleSubmit = async () => {
     try {
       if (editingWallet) {
@@ -64,7 +76,6 @@ export function WalletTab() {
   };
 
   const handleDelete = (id: string) => {
-    // Thay confirm bằng showAlert
     showAlert({
       title: "Xác nhận xóa",
       description: "Bạn có chắc muốn xóa ví này? Hành động này không thể hoàn tác.",
@@ -87,13 +98,24 @@ export function WalletTab() {
     setIsDialogOpen(true);
   };
 
+  // --- LOGIC TỰ ĐỘNG CHỌN MÀU MỚI ---
   const openCreate = () => {
     setEditingWallet(null);
-    setFormData({ name: "", balance: 0, color: "#10b981" });
+    
+    // Lấy danh sách màu đã dùng
+    const usedColors = wallets.map(w => w.color);
+    // Lọc ra các màu chưa dùng
+    const availableColors = PRESET_COLORS.filter(c => !usedColors.includes(c));
+    
+    // Nếu còn màu chưa dùng -> chọn ngẫu nhiên trong đó. Nếu hết -> chọn ngẫu nhiên trong tất cả.
+    const randomColor = availableColors.length > 0 
+        ? availableColors[Math.floor(Math.random() * availableColors.length)]
+        : PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+
+    setFormData({ name: "", balance: 0, color: randomColor });
     setIsDialogOpen(true);
   };
 
-  // --- LOGIC CHUYỂN TIỀN ---
   const openTransfer = (sourceWallet: Wallet) => {
     setTransferData({ fromWalletId: sourceWallet._id, toWalletId: "", amount: "" });
     setIsTransferOpen(true);
@@ -185,17 +207,27 @@ export function WalletTab() {
                 placeholder="0"
               />
             </div>
+            
+            {/* GIAO DIỆN CHỌN MÀU MỚI */}
             <div className="grid gap-2">
-              <label>Màu sắc</label>
-              <div className="flex gap-2">
-                <input 
-                  type="color" 
-                  value={formData.color}
-                  onChange={(e) => setFormData({...formData, color: e.target.value})}
-                  className="h-10 w-20 p-1 rounded border cursor-pointer"
-                />
+              <label>Màu đại diện</label>
+              <div className="grid grid-cols-10 gap-2 mt-1">
+                {PRESET_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, color })}
+                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110 ${
+                      formData.color === color ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : ""
+                    }`}
+                    style={{ backgroundColor: color }}
+                  >
+                    {formData.color === color && <Check className="w-3 h-3 text-white drop-shadow-md" />}
+                  </button>
+                ))}
               </div>
             </div>
+
           </div>
           <DialogFooter>
             <Button onClick={handleSubmit}>{editingWallet ? "Lưu thay đổi" : "Tạo ví"}</Button>
@@ -203,6 +235,7 @@ export function WalletTab() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Transfer giữ nguyên */}
       <Dialog open={isTransferOpen} onOpenChange={setIsTransferOpen}>
         <DialogContent>
             <DialogHeader>

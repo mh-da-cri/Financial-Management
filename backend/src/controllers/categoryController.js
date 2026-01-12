@@ -5,8 +5,9 @@ import Category from '../models/categoryModel.js';
 // @access  Private
 const getCategories = async (req, res) => {
     try {
-        // Lấy tất cả danh mục của user, sắp xếp danh mục mới tạo lên trước
-        const categories = await Category.find({ user: req.user._id }).sort({ createdAt: -1 });
+        // Sắp xếp: type (a-z) -> createdAt (mới nhất trước)
+        const categories = await Category.find({ user: req.user._id })
+            .sort({ type: 1, createdAt: -1 });
         res.status(200).json(categories);
     } catch (error) {
         res.status(500).json({ message: error.message });

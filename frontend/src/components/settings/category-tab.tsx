@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -9,7 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import axiosInstance from "@/services/axiosInstance";
 import { Category } from "@/types";
-import { useAlert } from "@/context/alert-context"; // <--- Import
+import { useAlert } from "@/context/alert-context";
+
+// Bảng màu mở rộng 30 màu sắc (3 hàng x 10 cột)
+const PRESET_COLORS = [
+  // Hàng 1: Các tông nóng (Đỏ, Cam, Vàng đậm)
+  "#ef4444", "#f97316", "#f59e0b", "#eab308", "#a16207", 
+  "#dc2626", "#ea580c", "#d97706", "#ca8a04", "#b45309",
+  
+  // Hàng 2: Các tông lạnh (Xanh lá, Teal, Xanh dương)
+  "#84cc16", "#22c55e", "#10b981", "#06b6d4", "#0ea5e9", 
+  "#3b82f6", "#6366f1", "#4d7c0f", "#15803d", "#0f766e",
+  
+  // Hàng 3: Tím, Hồng và Trung tính
+  "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e", 
+  "#e11d48", "#db2777", "#c026d3", "#71717a", "#000000"
+];
 
 export function CategoryTab() {
   const { showAlert } = useAlert();
@@ -79,9 +94,19 @@ export function CategoryTab() {
     setIsDialogOpen(true);
   };
 
+  // --- LOGIC TỰ ĐỘNG CHỌN MÀU MỚI ---
   const openCreate = () => {
     setEditingCat(null);
-    setFormData({ name: "", type: "expense", color: "#ef4444", icon: "circle" });
+    
+    // Logic tương tự ví: Ưu tiên chọn màu chưa dùng
+    const usedColors = categories.map(c => c.color);
+    const availableColors = PRESET_COLORS.filter(c => !usedColors.includes(c));
+    
+    const randomColor = availableColors.length > 0 
+        ? availableColors[Math.floor(Math.random() * availableColors.length)]
+        : PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+
+    setFormData({ name: "", type: "expense", color: randomColor, icon: "circle" });
     setIsDialogOpen(true);
   };
 
@@ -164,15 +189,23 @@ export function CategoryTab() {
               </Select>
             </div>
 
+            {/* GIAO DIỆN CHỌN MÀU MỚI */}
             <div className="grid gap-2">
-              <label>Màu sắc</label>
-              <div className="flex gap-2">
-                <input 
-                  type="color" 
-                  value={formData.color}
-                  onChange={(e) => setFormData({...formData, color: e.target.value})}
-                  className="h-10 w-20 p-1 rounded border cursor-pointer"
-                />
+              <label>Màu đại diện</label>
+              <div className="grid grid-cols-10 gap-2 mt-1">
+                {PRESET_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, color })}
+                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110 ${
+                      formData.color === color ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : ""
+                    }`}
+                    style={{ backgroundColor: color }}
+                  >
+                    {formData.color === color && <Check className="w-3 h-3 text-white drop-shadow-md" />}
+                  </button>
+                ))}
               </div>
             </div>
           </div>

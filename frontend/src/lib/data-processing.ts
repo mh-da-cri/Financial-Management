@@ -1,19 +1,18 @@
 // lib/data-processing.ts
 import { Transaction, Saving, Wallet } from "@/types";
 import { 
-  startOfWeek, 
-  endOfWeek, 
   eachDayOfInterval, 
   isSameDay, 
   format, 
   startOfMonth, 
   endOfMonth, 
   isWithinInterval,
-  getDay 
+  getDay,
+  startOfWeek,
+  endOfWeek
 } from "date-fns";
 import { vi } from "date-fns/locale";
 
-// 1. Tính tổng (Đã kiểm tra logic filter)
 export const calculateTotals = (
   transactions: Transaction[], 
   savings: Saving[], 
@@ -23,17 +22,14 @@ export const calculateTotals = (
   const currentMonthStart = startOfMonth(new Date());
   const currentMonthEnd = endOfMonth(new Date());
 
-  // Lọc theo ví nếu có
   let filteredTransactions = transactions;
   let filteredWallets = wallets;
 
   if (filterWalletId && filterWalletId !== "all") {
-    // Đảm bảo so sánh string id chuẩn xác
     filteredTransactions = transactions.filter(t => t.wallet && t.wallet._id === filterWalletId);
     filteredWallets = wallets.filter(w => w._id === filterWalletId);
   }
 
-  // Chỉ lấy giao dịch trong tháng hiện tại
   const monthlyTransactions = filteredTransactions.filter((t) => 
     isWithinInterval(new Date(t.date), { start: currentMonthStart, end: currentMonthEnd })
   );
@@ -46,19 +42,11 @@ export const calculateTotals = (
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Tiết kiệm (Saving) là mục tiêu chung, không gắn liền với ví cụ thể trong Model
-  // Nên ta vẫn hiển thị tổng tiết kiệm của User (hoặc có thể trả về 0 nếu muốn strict)
   const totalSavings = savings.reduce((sum, s) => sum + s.currentAmount, 0);
-  
   const totalBalance = filteredWallets.reduce((sum, w) => sum + w.balance, 0);
 
   return { totalIncome, totalExpense, totalSavings, totalBalance };
 };
-
-// ... (Giữ nguyên các hàm getPieChartData, getWeeklyChartData, getCalendarData bên dưới)
-// Lưu ý: Nếu muốn biểu đồ cũng lọc theo ví, bạn cần truyền filterWalletId vào các hàm này và lọc transaction tương tự như trên.
-// Hiện tại code dưới đây tính trên TOÀN BỘ transactions được truyền vào. 
-// Ở page.tsx chúng ta sẽ truyền filteredTransactions vào đây.
 
 export const getPieChartData = (transactions: Transaction[], selectedMonth: Date) => {
   const start = startOfMonth(selectedMonth); 
@@ -91,7 +79,9 @@ export const getWeeklyChartData = (transactions: Transaction[], selectedDate: Da
   const daysInWeek = eachDayOfInterval({ start, end });
 
   return daysInWeek.map((day) => {
+    // So sánh ngày dựa trên Local Time của trình duyệt
     const dayTransactions = transactions.filter((t) => isSameDay(new Date(t.date), day));
+    
     const income = dayTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
     const expense = dayTransactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
 
@@ -133,7 +123,9 @@ export const getCalendarData = (transactions: Transaction[], currentMonth: Date)
     };
   });
 
+  // Logic padding cho lịch (để ô ngày 1 bắt đầu đúng thứ)
   let startDayIndex = getDay(monthStart); 
+  // getDay trả về 0 là CN, 1 là T2. Ta muốn T2 là index 0
   startDayIndex = startDayIndex === 0 ? 6 : startDayIndex - 1;
   const paddingDays = Array(startDayIndex).fill(null);
 

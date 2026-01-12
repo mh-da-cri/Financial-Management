@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format, addMonths, subMonths, isSameDay } from "date-fns";
+import { format, addMonths, subMonths, isSameDay, isToday } from "date-fns";
 import { vi } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, ShoppingCart, Plus, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, Plus, Pencil, Trash2, Filter } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,13 +28,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { getCalendarData, DayData } from "@/lib/data-processing";
 import { Transaction, Wallet, Category } from "@/types";
 import axiosInstance from "@/services/axiosInstance";
-import { useAlert } from "@/context/alert-context"; // <--- Import
+import { useAlert } from "@/context/alert-context"; 
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
 
 export default function ExpensesPage() {
-  const { showAlert } = useAlert(); // <--- Hook
+  const { showAlert } = useAlert(); 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -42,6 +42,9 @@ export default function ExpensesPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loading, setLoading] = useState(true);
   
+  // State lọc danh mục
+  const [filterCategoryId, setFilterCategoryId] = useState<string>("all");
+
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
   const [isDayDialogOpen, setIsDayDialogOpen] = useState(false);
 
@@ -83,13 +86,18 @@ export default function ExpensesPage() {
     fetchData();
   }, []);
 
+  // Cập nhật lại modal chi tiết ngày khi dữ liệu thay đổi
   useEffect(() => {
     if (selectedDay && isDayDialogOpen) {
-      const { calendarDays } = getCalendarData(transactions, currentMonth);
+      const filtered = filterCategoryId === "all" 
+        ? transactions 
+        : transactions.filter(t => t.category._id === filterCategoryId);
+        
+      const { calendarDays } = getCalendarData(filtered, currentMonth);
       const updatedDay = calendarDays.find(d => isSameDay(d.date, selectedDay.date));
       if (updatedDay) setSelectedDay(updatedDay);
     }
-  }, [transactions, currentMonth, isDayDialogOpen]);
+  }, [transactions, currentMonth, isDayDialogOpen, filterCategoryId]);
 
   const openAddForm = (dateObj: Date) => {
     setEditingTransaction(null);
@@ -123,12 +131,17 @@ export default function ExpensesPage() {
     }
 
     try {
+      // --- LOGIC TIMEZONE FIX (Quan trọng) ---
+      // Tạo ngày mới từ string form và đặt giờ là 12:00 trưa
+      const submitDate = new Date(formData.date);
+      submitDate.setHours(12, 0, 0, 0);
+
       const payload = {
         type: "expense",
         walletId: formData.walletId,
         categoryId: formData.categoryId,
         amount: Number(formData.amount),
-        date: new Date(formData.date),
+        date: submitDate, // Dùng ngày đã fix giờ
         description: formData.description,
       };
 
@@ -163,7 +176,18 @@ export default function ExpensesPage() {
     });
   };
 
-  const { calendarDays, paddingDays } = getCalendarData(transactions, currentMonth);
+  // --- LOGIC LỌC DỮ LIỆU ---
+  const filteredTransactions = transactions.filter(t => {
+    if (filterCategoryId === "all") return true;
+    return t.category._id === filterCategoryId;
+  });
+
+  const { calendarDays, paddingDays } = getCalendarData(filteredTransactions, currentMonth);
+  
+  const maxExpenseAmount = calendarDays.length > 0 
+    ? Math.max(...calendarDays.map(d => d.totalExpense)) 
+    : 0;
+
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   
@@ -176,27 +200,53 @@ export default function ExpensesPage() {
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <h2 className="text-3xl font-bold tracking-tight">Lịch Chi Tiêu</h2>
         
-        <div className="flex gap-4">
-            <div className="flex items-center gap-4 bg-white p-2 rounded-lg border shadow-sm">
-            <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-full">
-                <ChevronLeft className="h-5 w-5" />
-            </button>
-            <span className="text-lg font-medium min-w-[150px] text-center capitalize">
-                {format(currentMonth, "MMMM yyyy", { locale: vi })}
-            </span>
-            <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-full">
-                <ChevronRight className="h-5 w-5" />
-            </button>
+        <div className="flex flex-col sm:flex-row gap-3 items-center w-full md:w-auto">
+            {/* --- THANH LỌC DANH MỤC --- */}
+            <div className="w-full sm:w-[200px]">
+                <Select value={filterCategoryId} onValueChange={setFilterCategoryId}>
+                    <SelectTrigger className="bg-white">
+                        <div className="flex items-center gap-2">
+                            <Filter className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder="Lọc danh mục" />
+                        </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Tất cả danh mục</SelectItem>
+                        {categories.map((c) => (
+                            <SelectItem key={c._id} value={c._id}>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }}></div>
+                                    {c.name}
+                                </div>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {/* THANH ĐIỀU HƯỚNG THÁNG */}
+            <div className="flex items-center gap-4 bg-white p-1.5 rounded-lg border shadow-sm w-full sm:w-auto justify-between sm:justify-center">
+                <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-full">
+                    <ChevronLeft className="h-5 w-5" />
+                </button>
+                <span className="text-base font-medium min-w-[120px] text-center capitalize select-none">
+                    {format(currentMonth, "MMMM yyyy", { locale: vi })}
+                </span>
+                <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-full">
+                    <ChevronRight className="h-5 w-5" />
+                </button>
             </div>
         </div>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Tổng quan tháng</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg text-muted-foreground">
+            {filterCategoryId === "all" ? "Tổng quan toàn bộ chi tiêu" : "Chi tiết theo danh mục"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-2 mb-2 text-center text-sm font-semibold text-gray-500">
@@ -207,44 +257,59 @@ export default function ExpensesPage() {
 
           <div className="grid grid-cols-7 gap-2">
             {paddingDays.map((_, index) => (
-              <div key={`padding-${index}`} className="h-32 bg-gray-50/50 rounded-md border border-dashed border-gray-200" />
+              <div key={`padding-${index}`} className="h-24 sm:h-32 bg-gray-50/50 rounded-md border border-dashed border-gray-200" />
             ))}
 
-            {calendarDays.map((dayData, index) => (
-              <div
-                key={index}
-                onClick={() => handleDayClick(dayData)}
-                className={`
-                  relative h-32 p-2 rounded-md border cursor-pointer transition-all hover:shadow-md
-                  ${dayData.totalExpense > 0 ? "bg-white border-red-200" : "bg-white border-gray-200"}
-                `}
-              >
-                <div className="flex justify-between items-start">
-                  <span className={`text-sm font-semibold ${dayData.totalExpense > 0 ? "text-gray-900" : "text-gray-400"}`}>
-                    {dayData.dayOfMonth}
-                  </span>
-                  {dayData.totalExpense > 0 && (
-                     <div className="h-2 w-2 rounded-full bg-red-500" />
+            {calendarDays.map((dayData, index) => {
+              const isTodayDate = isToday(dayData.date);
+              const isHighestExpense = maxExpenseAmount > 0 && dayData.totalExpense === maxExpenseAmount;
+
+              return (
+                <div
+                  key={index}
+                  onClick={() => handleDayClick(dayData)}
+                  className={`
+                    relative h-24 sm:h-32 p-1 sm:p-2 rounded-md border cursor-pointer transition-all hover:shadow-md flex flex-col justify-between
+                    ${dayData.totalExpense > 0 ? "bg-white border-red-200" : "bg-white border-gray-200"}
+                    ${isTodayDate ? "ring-2 ring-blue-500 bg-blue-50/20" : ""} 
+                    ${isHighestExpense ? "bg-red-50 border-red-300 ring-1 ring-red-200" : ""}
+                  `}
+                >
+                  <div className="flex justify-between items-start">
+                    <span 
+                        className={`
+                            text-xs sm:text-sm font-semibold flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full
+                            ${isTodayDate ? "bg-blue-600 text-white shadow-md" : (dayData.totalExpense > 0 ? "text-gray-900" : "text-gray-400")}
+                        `}
+                    >
+                      {dayData.dayOfMonth}
+                    </span>
+
+                    {isHighestExpense && (
+                        <span className="hidden sm:inline-block text-[10px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full shadow-sm">
+                            Cao nhất
+                        </span>
+                    )}
+                  </div>
+
+                  {dayData.totalExpense > 0 ? (
+                    <div className="flex flex-col items-center justify-center flex-1">
+                      <span className="hidden sm:block text-[10px] text-gray-500">Chi tiêu</span>
+                      <span className={`text-xs sm:text-sm font-bold truncate w-full text-center ${isHighestExpense ? "text-red-700 sm:text-base" : "text-red-600"}`}>
+                        {formatCurrency(dayData.totalExpense)}
+                      </span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">
+                        {dayData.transactions.length} GD
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-gray-300 text-xs">
+                      -
+                    </div>
                   )}
                 </div>
-
-                {dayData.totalExpense > 0 ? (
-                  <div className="mt-4 flex flex-col items-center justify-center h-[calc(100%-24px)]">
-                    <span className="text-xs text-gray-500">Chi tiêu</span>
-                    <span className="text-sm font-bold text-red-600 truncate w-full text-center">
-                      {formatCurrency(dayData.totalExpense)}
-                    </span>
-                    <span className="text-[10px] text-gray-400 mt-1">
-                      {dayData.transactions.length} giao dịch
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex h-full items-center justify-center text-gray-300 text-xs">
-                    -
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>

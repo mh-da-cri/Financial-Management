@@ -37,10 +37,10 @@ import {
 import axiosInstance from "@/services/axiosInstance";
 import { Transaction, Wallet, Category } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { useAlert } from "@/context/alert-context"; // <--- Import
+import { useAlert } from "@/context/alert-context";
 
 export default function IncomesPage() {
-  const { showAlert } = useAlert(); // <--- Hook
+  const { showAlert } = useAlert();
   const [incomes, setIncomes] = useState<Transaction[]>([]);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -72,7 +72,6 @@ export default function IncomesPage() {
 
       const incomeList = resTrans.data.filter((t: Transaction) => t.type === "income");
       setIncomes(incomeList);
-      
       setWallets(resWallets.data);
       setCategories(resCats.data.filter((c: Category) => c.type === "income"));
 
@@ -93,12 +92,18 @@ export default function IncomesPage() {
         return showAlert({ title: "Thiếu thông tin", description: "Vui lòng nhập đủ số tiền, ví và danh mục" });
       }
 
+      // --- LOGIC TIMEZONE FIX ---
+      // Tạo ngày mới từ string form
+      const submitDate = new Date(formData.date);
+      // Đặt giờ là 12:00 trưa để tránh bị lùi ngày khi lưu UTC
+      submitDate.setHours(12, 0, 0, 0);
+
       await axiosInstance.post("/transactions", {
         type: "income",
         walletId: formData.walletId,
         categoryId: formData.categoryId,
         amount: Number(formData.amount),
-        date: new Date(formData.date),
+        date: submitDate, // Gửi object Date đã chỉnh giờ
         description: formData.description,
       });
 
@@ -110,12 +115,13 @@ export default function IncomesPage() {
     }
   };
 
-  // ... (Phần logic tính toán & UI Card/Chart giữ nguyên) ...
+  // Logic thống kê
   const currentMonth = new Date();
   const lastMonth = subMonths(new Date(), 1);
   const thisMonthIncome = incomes.filter(t => isSameMonth(new Date(t.date), currentMonth)).reduce((sum, t) => sum + t.amount, 0);
   const lastMonthIncome = incomes.filter(t => isSameMonth(new Date(t.date), lastMonth)).reduce((sum, t) => sum + t.amount, 0);
   const percentChange = lastMonthIncome === 0 ? 100 : ((thisMonthIncome - lastMonthIncome) / lastMonthIncome) * 100;
+  
   const chartData = eachMonthOfInterval({ start: subMonths(new Date(), 5), end: new Date() }).map(date => {
     const total = incomes.filter(t => isSameMonth(new Date(t.date), date)).reduce((sum, t) => sum + t.amount, 0);
     return { name: format(date, "MM/yyyy"), amount: total };
@@ -177,7 +183,6 @@ export default function IncomesPage() {
         </Card>
       </div>
 
-      {/* ADD INCOME DIALOG */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -194,7 +199,6 @@ export default function IncomesPage() {
                   />
               </div>
             </div>
-
             <div className="grid grid-cols-4 items-center gap-4">
               <label className="text-right text-sm font-medium">Nguồn thu</label>
               <div className="col-span-3">
@@ -206,7 +210,6 @@ export default function IncomesPage() {
                 </Select>
               </div>
             </div>
-
             <div className="grid grid-cols-4 items-center gap-4">
               <label className="text-right text-sm font-medium">Về ví</label>
               <div className="col-span-3">
@@ -218,12 +221,10 @@ export default function IncomesPage() {
                 </Select>
               </div>
             </div>
-
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="date" className="text-right text-sm font-medium">Ngày</label>
               <Input id="date" type="date" className="col-span-3" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
             </div>
-
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="desc" className="text-right text-sm font-medium">Ghi chú</label>
               <Input id="desc" placeholder="Ví dụ: Lương tháng 10" className="col-span-3" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />

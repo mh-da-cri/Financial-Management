@@ -10,6 +10,7 @@ import walletRoutes from './src/routes/walletRoutes.js';
 import categoryRoutes from './src/routes/categoryRoutes.js';
 import transactionRoutes from './src/routes/transactionRoutes.js';
 import savingRoutes from './src/routes/savingRoutes.js'; // <--- MỚI
+import planRoutes from './src/routes/planRoutes.js'; // <--- Thêm dòng này
 
 dotenv.config();
 connectDB();
@@ -33,6 +34,7 @@ app.use('/api/wallets', walletRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/savings', savingRoutes); // <--- MỚI
+app.use('/api/plans', planRoutes); // <--- Thêm dòng này
 
 const PORT = process.env.PORT || 5001;
 
