@@ -18,8 +18,10 @@ connectDB();
 const app = express();
 
 app.use(cors({
-  // Chỉ định rõ địa chỉ Frontend Local của bạn
-  origin: ["http://localhost:3000", "http://192.168.1.5:3000"], 
+  origin: [
+    "http://localhost:3000",              // Cho phép Localhost
+    "https://financial-frontend-5xln.onrender.com" // THÊM DÒNG NÀY: Link Frontend trên Render của bạn
+  ], 
   credentials: true,               
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
